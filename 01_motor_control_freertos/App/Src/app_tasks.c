@@ -8,6 +8,37 @@
 #define MOTOR_CONTROL_PERIOD_TICKS  1U
 #define TELEMETRY_PERIOD_TICKS      10U
 
+// 可在调试器中观察超期次数，避免用串口打印影响任务节拍。
+static volatile uint32_t motor_control_overrun_count;
+static volatile uint32_t telemetry_overrun_count;
+
+static void AppTasks_WaitForPeriod(uint32_t *last_wake_time,
+                                   uint32_t period_ticks,
+                                   volatile uint32_t *overrun_count)
+{
+    *last_wake_time += period_ticks;
+    osStatus_t status = osDelayUntil(*last_wake_time);
+    if (status == osOK)
+        return;
+
+    // 本工程的 CMSIS 封装在目标 tick 已到或已过时返回此错误。
+    // 正常超期不应进入会关闭中断的 Error_Handler。
+    if (status != osErrorParameter)
+    {
+        Error_Handler();
+        return;
+    }
+
+    ++(*overrun_count);
+    // 阻塞一个周期再重新计时，避免连续追赶旧节拍占满 CPU。
+    if (osDelay(period_ticks) != osOK)
+    {
+        Error_Handler();
+        return;
+    }
+    *last_wake_time = osKernelGetTickCount();
+}
+
 // 电机控制任务：1ms 一个节拍跑串级 PID 并下发 CAN。
 // 用 osDelayUntil 累加"绝对唤醒时刻"而不是 osDelay(1)：
 // 后者会把每次循环的执行耗时也叠加进去，长时间跑下来节拍会越来越慢。
@@ -18,9 +49,8 @@ void AppTasks_MotorControl(void)
     for (;;)
     {
         MotorControl_Step();
-        last_wake_time += MOTOR_CONTROL_PERIOD_TICKS;
-        if (osDelayUntil(last_wake_time) != osOK)
-            Error_Handler();
+        AppTasks_WaitForPeriod(&last_wake_time, MOTOR_CONTROL_PERIOD_TICKS,
+                               &motor_control_overrun_count);
     }
 }
 
@@ -103,8 +133,7 @@ void AppTasks_Telemetry(void)
                                        Motor_1.PositionMeasure))
             Error_Handler();
 
-        last_wake_time += TELEMETRY_PERIOD_TICKS;
-        if (osDelayUntil(last_wake_time) != osOK)
-            Error_Handler();
+        AppTasks_WaitForPeriod(&last_wake_time, TELEMETRY_PERIOD_TICKS,
+                               &telemetry_overrun_count);
     }
 }

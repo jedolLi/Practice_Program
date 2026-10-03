@@ -69,6 +69,10 @@
 #define configTICK_RATE_HZ                       ((TickType_t)1000)
 #define configMAX_PRIORITIES                     ( 56 )
 #define configMINIMAL_STACK_SIZE                 ((uint16_t)128)
+/* 2 = 既检查栈底哨兵，也检查当前栈指针附近的填充字节。
+   栈溢出时立即进入 vApplicationStackOverflowHook 并停在出错任务上，
+   而不是像原来那样静默改写相邻任务的 TCB。 */
+#define configCHECK_FOR_STACK_OVERFLOW           2
 #define configTOTAL_HEAP_SIZE                    ((size_t)15360)
 #define configMAX_TASK_NAME_LEN                  ( 16 )
 #define configUSE_TRACE_FACILITY                 1
