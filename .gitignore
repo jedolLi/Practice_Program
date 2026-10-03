@@ -48,6 +48,23 @@ Release/
 **/.idea/queries/
 **/.idea/usage.statistics.xml
 
+# ===================== 根目录误建的工程骨架 =====================
+# 根目录是「多工程容器」而非可构建工程。下面这些是曾经误把工程骨架生成在
+# 根目录留下的副本，真正的工程在 01_motor_control_freertos/ 下，两者同名。
+# 必须用 / 前缀锚定到根目录，否则会连子工程内同名的 Core/、Drivers/、
+# Middlewares/、cmake/、MDK-ARM/、test9_9.ioc 等一起屏蔽掉。
+/Core/
+/Drivers/
+/Middlewares/
+/MDK-ARM/
+/cmake/
+/CMakeLists.txt
+/CMakePresets.json
+/STM32F405xx_FLASH.ld
+/startup_stm32f405xx.s
+/test9_9.ioc
+/.mxproject
+
 # ===================== 杂项 =====================
 *.bak
 *.orig
