@@ -12,6 +12,7 @@
 static volatile uint32_t motor_control_overrun_count;
 static volatile uint32_t telemetry_overrun_count;
 
+// 等待下一个周期的函数，避免 osDelay(1) 叠加执行耗时导致节拍越来越慢。
 static void AppTasks_WaitForPeriod(uint32_t *last_wake_time,
                                    uint32_t period_ticks,
                                    volatile uint32_t *overrun_count)
@@ -39,9 +40,7 @@ static void AppTasks_WaitForPeriod(uint32_t *last_wake_time,
     *last_wake_time = osKernelGetTickCount();
 }
 
-// 电机控制任务：1ms 一个节拍跑串级 PID 并下发 CAN。
-// 用 osDelayUntil 累加"绝对唤醒时刻"而不是 osDelay(1)：
-// 后者会把每次循环的执行耗时也叠加进去，长时间跑下来节拍会越来越慢。
+// 电机控制任务
 void AppTasks_MotorControl(void)
 {
     uint32_t last_wake_time = osKernelGetTickCount();
@@ -54,9 +53,8 @@ void AppTasks_MotorControl(void)
     }
 }
 
-// 串口命令任务：常驻阻塞在命令队列上，收到一条处理一条。
+// 串口命令接收以及解析任务：常驻阻塞在命令队列上，收到一条处理一条。
 // 注意这里没有 osDelay —— 任务靠队列阻塞让出 CPU，命令到达时立刻被唤醒，
-// 比轮询方式响应更快且不占用任何 CPU 时间。
 void AppTasks_UartCommand(void)
 {
     uint8_t command;
@@ -112,8 +110,7 @@ void AppTasks_UartCommand(void)
     }
 }
 
-// 遥测任务：10ms 发送一次"速度,位置"。
-// 顺带把 UART 接收错误计数变化上报一次，方便上位机发现丢字节/溢出问题。
+// 遥测回传任务
 void AppTasks_Telemetry(void)
 {
     uint32_t last_wake_time = osKernelGetTickCount();

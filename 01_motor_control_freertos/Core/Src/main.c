@@ -45,11 +45,6 @@ CAN_HandleTypeDef hcan2;
 
 UART_HandleTypeDef huart4;
 
-/* 栈尺寸单位是字节（数量 * 4）。
-   遥测任务最坏调用链 AppTasks_Telemetry -> UartService_SendTelemetry ->
-   snprintf/_svfiprintf_r 约 620 B，叠加中断帧后 128*4=512 B 会向下越界，
-   踩坏紧邻其栈底的 UartCmdTask TCB，导致收到串口命令时卡死在
-   xTaskRemoveFromEventList 的 configASSERT 死循环里。此处按实测需求留足余量。 */
 /* Definitions for MotorCrlTask */
 osThreadId_t MotorCrlTaskHandle;
 const osThreadAttr_t MotorCrlTask_attributes = {
