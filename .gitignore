@@ -47,6 +47,10 @@ Release/
 **/.idea/dataSources.local.xml
 **/.idea/queries/
 **/.idea/usage.statistics.xml
+# editor.xml 记录本机的检查等级、代码折叠、内联提示等编辑器偏好，随机器变化，
+# 对别人没有意义，不应提交。需要共享的工程配置是 misc.xml / modules.xml /
+# *.iml / vcs.xml / .name，这些继续入库。
+**/.idea/editor.xml
 
 # ===================== 根目录误建的工程骨架 =====================
 # 根目录是「多工程容器」而非可构建工程。下面这些是曾经误把工程骨架生成在
