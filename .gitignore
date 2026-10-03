@@ -1,0 +1,60 @@
+# 本仓库为多工程集合：根目录下每个子文件夹是一个独立工程。
+# 规则统一写在根目录，用 **/ 前缀保证在任意层级的子工程中都生效。
+# 新增工程时，只需在下方「Keil 编译产物目录」处补一行该工程的输出目录名。
+
+# ===================== 构建输出（CMake / GCC） =====================
+**/build/
+**/cmake-build-*/
+Debug/
+Release/
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+*.su
+*.i
+*.crf
+*.dep
+*.axf
+*.htm
+*.build_log.htm
+*.scvd
+*.cyw
+
+# ===================== Keil MDK-ARM =====================
+# 编译产物目录，目录名与 Keil 工程同名，新工程按需追加
+**/MDK-ARM/test9_9/
+# 用户界面布局与调试日志，随机器变化，不应提交
+**/MDK-ARM/*.uvguix.*
+**/MDK-ARM/JLinkLog.txt
+
+# ===================== IAR EWARM =====================
+**/EWARM/settings/
+**/EWARM/*.dep
+
+# ===================== IDE / 编辑器 =====================
+.vscode/
+# 仓库根是「多工程容器」而非可构建工程，在此打开 CLion 只会生成无用的
+# 工程配置。用 / 前缀锚定到根目录，不影响各子工程内需要入库的 .idea/
+/.idea/
+**/.idea/workspace.xml
+**/.idea/shelf/
+**/.idea/httpRequests/
+**/.idea/dataSources/
+**/.idea/dataSources.local.xml
+**/.idea/queries/
+**/.idea/usage.statistics.xml
+
+# ===================== 杂项 =====================
+*.bak
+*.orig
+*.rej
+*.tmp
+*.log
+*.swp
+*~
+.DS_Store
+Thumbs.db
