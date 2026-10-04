@@ -4,9 +4,58 @@
 #include "motor.h"
 #include "cmsis_os2.h"
 #include "main.h"
+#include <stdio.h>
 
 #define MOTOR_CONTROL_PERIOD_TICKS  1U
 #define TELEMETRY_PERIOD_TICKS      10U
+
+// 把浮点目标格式化为保留一位小数的字符串（不依赖 %f，避免引入浮点 printf）。
+static void AppTasks_FormatValue(char *buffer, size_t size, float value)
+{
+    int32_t scaled = (int32_t)(value * 10.0f +
+                               ((value >= 0.0f) ? 0.5f : -0.5f));
+    int32_t magnitude = (scaled < 0) ? -scaled : scaled;
+
+    (void)snprintf(buffer, size, "%s%ld.%01ld",
+                   (scaled < 0) ? "-" : "",
+                   (long)(magnitude / 10), (long)(magnitude % 10));
+}
+
+// 指令接收回报任务
+static void AppTasks_ReportCommand(MotorControl_CommandResult_t result)
+{
+    char message[24];
+    char value_text[16];
+
+    switch (result.kind)
+    {
+        case MOTOR_CMD_SPEED:
+            AppTasks_FormatValue(value_text, sizeof(value_text), result.value);
+            (void)snprintf(message, sizeof(message), "SPEED %s\r\n", value_text);
+            break;
+
+        case MOTOR_CMD_POSITION:
+            AppTasks_FormatValue(value_text, sizeof(value_text), result.value);
+            (void)snprintf(message, sizeof(message), "POS %s\r\n", value_text);
+            break;
+
+        case MOTOR_CMD_STOP:
+            (void)snprintf(message, sizeof(message), "STOP\r\n");
+            break;
+
+        case MOTOR_CMD_INVALID:
+            (void)snprintf(message, sizeof(message), "INVALID COMMAND\r\n");
+            break;
+
+        // 空行不回应
+        case MOTOR_CMD_NONE:
+        default:
+            return;
+    }
+
+    if (!UartService_SendString(message))
+        Error_Handler();
+}
 
 // 可在调试器中观察超期次数，避免用串口打印影响任务节拍。
 static volatile uint32_t motor_control_overrun_count;
@@ -53,10 +102,13 @@ void AppTasks_MotorControl(void)
     }
 }
 
-// 串口命令接收以及解析任务：常驻阻塞在命令队列上，收到一条处理一条。
-// 注意这里没有 osDelay —— 任务靠队列阻塞让出 CPU，命令到达时立刻被唤醒，
+// 串口命令接收任务：常驻阻塞在命令队列上，按行累积后统一解析。
+//只接收不解析
 void AppTasks_UartCommand(void)
 {
+    char line[32];
+    uint8_t line_length = 0;
+    uint8_t line_overflow = 0;
     uint8_t command;
 
     // 接收中断必须先挂起，否则第一条命令就会丢
@@ -70,43 +122,30 @@ void AppTasks_UartCommand(void)
         if (UartService_ReceiveCommand(&command, osWaitForever) != osOK)
             Error_Handler();
 
-        if ((command == '\r') || (command == '\n'))
+        // 回车换行代表一条命令结束
+        if ((command != '\r') && (command != '\n'))
+        {
+            // 超长行直接丢弃，避免溢出；仍继续累积直到行尾好一并报错
+            if (line_length < (sizeof(line) - 1U))
+                line[line_length++] = (char)command;
+            else
+                line_overflow = 1;
             continue;
+        }
+
+        line[line_length] = '\0';
+        line_length = 0;
+
+        if (line_overflow)
+        {
+            line_overflow = 0;
+            if (!UartService_SendString("INVALID COMMAND\r\n"))
+                Error_Handler();
+            continue;
+        }
 
         // 登记目标状态，实际下发由 1ms 控制任务完成
-        MotorControl_HandleCommand(command);
-        switch (command)
-        {
-            case 'f':
-            case 'F':
-                if (!UartService_SendString("SPEED FWD\r\n"))
-                    Error_Handler();
-                break;
-            case 'r':
-            case 'R':
-                if (!UartService_SendString("SPEED REV\r\n"))
-                    Error_Handler();
-                break;
-            case 'p':
-            case 'P':
-                if (!UartService_SendString("POS FWD\r\n"))
-                    Error_Handler();
-                break;
-            case 'n':
-            case 'N':
-                if (!UartService_SendString("POS REV\r\n"))
-                    Error_Handler();
-                break;
-            case 's':
-            case 'S':
-                if (!UartService_SendString("STOP\r\n"))
-                    Error_Handler();
-                break;
-            default:
-                if (!UartService_SendString("INVALID COMMAND\r\n"))
-                    Error_Handler();
-                break;
-        }
+        AppTasks_ReportCommand(MotorControl_HandleCommandLine(line));
     }
 }
 

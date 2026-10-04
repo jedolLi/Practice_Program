@@ -76,7 +76,15 @@ int UartService_StartReceive(void) {return 1;}
 osStatus_t UartService_ReceiveCommand(uint8_t *command,uint32_t timeout) {
     (void)command; (void)timeout; return osErrorParameter;
 }
-void MotorControl_HandleCommand(uint8_t command) {(void)command;}
+typedef enum {
+    MOTOR_CMD_NONE=0, MOTOR_CMD_SPEED, MOTOR_CMD_POSITION, MOTOR_CMD_STOP, MOTOR_CMD_INVALID
+} MotorCommandKind_t;
+typedef struct {MotorCommandKind_t kind; float value;} MotorControl_CommandResult_t;
+MotorControl_CommandResult_t MotorControl_HandleCommandLine(const char *line) {
+    (void)line;
+    MotorControl_CommandResult_t result = {MOTOR_CMD_NONE, 0.0f};
+    return result;
+}
 '''
 
 TESTS = r'''
